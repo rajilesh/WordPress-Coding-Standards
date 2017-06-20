@@ -34,6 +34,18 @@ class WordPress_Sniffs_Arrays_ArrayIndentationSniff extends WordPress_Sniff {
 	 */
 	private $ignore_tokens = array();
 
+	/**
+	 * Tokens this sniff targets.
+	 *
+	 * Also used to skip passed nested arrays.
+	 *
+	 * @var array
+	 */
+	private $targets = array(
+		T_ARRAY            => T_ARRAY,
+		T_OPEN_SHORT_ARRAY => T_OPEN_SHORT_ARRAY,
+	);
+
 
 	/**
 	 * Returns an array of tokens this test wants to listen for.
@@ -45,10 +57,7 @@ class WordPress_Sniffs_Arrays_ArrayIndentationSniff extends WordPress_Sniff {
 		$this->ignore_tokens = PHP_CodeSniffer_Tokens::$heredocTokens;
 		unset( $this->ignore_tokens[ T_START_HEREDOC ], $this->ignore_tokens[ T_START_NOWDOC ] );
 
-		return array(
-			T_ARRAY,
-			T_OPEN_SHORT_ARRAY,
-		);
+		return $this->targets;
 	}
 
 	/**
@@ -72,25 +81,12 @@ class WordPress_Sniffs_Arrays_ArrayIndentationSniff extends WordPress_Sniff {
 		/*
 		 * Determine the array opener & closer.
 		 */
-		if ( T_ARRAY === $this->tokens[ $stackPtr ]['code'] ) {
-			if ( ! isset( $this->tokens[ $stackPtr ]['parenthesis_opener'] ) ) {
-				return; // Live coding.
-			}
-			$opener = $this->tokens[ $stackPtr ]['parenthesis_opener'];
-
-			if ( ! isset( $this->tokens[ $opener ]['parenthesis_closer'] ) ) {
-				return; // Live coding.
-			}
-			$closer = $this->tokens[ $opener ]['parenthesis_closer'];
-		} else {
-			// Short array syntax.
-			$opener = $stackPtr;
-
-			if ( ! isset( $this->tokens[ $stackPtr ]['bracket_closer'] ) ) {
-				return; // Live coding.
-			}
-			$closer = $this->tokens[ $stackPtr ]['bracket_closer'];
+		$array_open_close = $this->find_array_open_close( $stackPtr );
+		if ( false === $array_open_close ) {
+			return; // Live coding.
 		}
+		$opener = $array_open_close['opener'];
+		$closer = $array_open_close['closer'];
 
 		if ( $this->tokens[ $opener ]['line'] === $this->tokens[ $closer ]['line'] ) {
 			// Not interested in single line arrays.
@@ -194,6 +190,20 @@ class WordPress_Sniffs_Arrays_ArrayIndentationSniff extends WordPress_Sniff {
 			// Find first content on second line of the array item.
 			// If the second line is a heredoc/nowdoc, continue on until we find a line with a different token.
 			for ( $ptr = ( $first_content + 1 ); $ptr <= $item['end']; $ptr++ ) {
+
+				if ( isset( $this->targets[ $this->tokens[ $ptr ]['code'] ] ) ) {
+					// Skip passed any nested arrays as they will trigger this sniff themselves.
+					$nested_array_open_close = $this->find_array_open_close( $ptr );
+					if ( false === $nested_array_open_close || $ptr > $item['end'] ) {
+						// Skip to the next toplevel array item if we can't find the opener/closer.
+						$end_of_previous_item = $end_of_this_item;
+						continue 2;
+					}
+
+					// Otherwise just move the $ptr forward past the end of the array.
+					$ptr = ( $nested_array_open_close['closer'] + 1 );
+				}
+
 				if ( $this->tokens[ $first_content ]['line'] !== $this->tokens[ $ptr ]['line']
 					&& ! isset( $this->ignore_tokens[ $this->tokens[ $ptr ]['code'] ] )
 				) {
@@ -256,6 +266,20 @@ class WordPress_Sniffs_Arrays_ArrayIndentationSniff extends WordPress_Sniff {
 
 					// Fix subsequent lines.
 					for ( $i = ( $first_content_on_line2 + 1 ); $i <= $item['end']; $i++ ) {
+
+						if ( isset( $this->targets[ $this->tokens[ $i ]['code'] ] ) ) {
+							// Skip passed any nested arrays as they will trigger this sniff themselves.
+							$nested_array_open_close = $this->find_array_open_close( $i );
+							if ( false === $nested_array_open_close || $ptr > $item['end'] ) {
+								// Skip to the next toplevel array item if we can't find the opener/closer.
+								$end_of_previous_item = $end_of_this_item;
+								continue 2;
+							}
+
+							// Otherwise just move the $ptr forward past the end of the array.
+							$i = ( $nested_array_open_close['closer'] + 1 );
+						}
+
 						// We're only interested in the first token on each line.
 						if ( 1 !== $this->tokens[ $i ]['column'] ) {
 							if ( $this->tokens[ $i ]['line'] === $this->tokens[ $item['end'] ]['line'] ) {
@@ -318,6 +342,45 @@ class WordPress_Sniffs_Arrays_ArrayIndentationSniff extends WordPress_Sniff {
 
 	} // End process_token().
 
+
+	/**
+	 * Find the array opener & closer based on a T_ARRAY or T_OPEN_SHORT_ARRAY token.
+	 *
+	 * @param int $stackPtr The stack pointer to the array token.
+	 *
+	 * @return array|bool Array with two keys `opener`, `closer` or false if
+	 *                    either or these could not be determined.
+	 */
+	protected function find_array_open_close( $stackPtr ) {
+		/*
+		 * Determine the array opener & closer.
+		 */
+		if ( T_ARRAY === $this->tokens[ $stackPtr ]['code'] ) {
+			if ( isset( $this->tokens[ $stackPtr ]['parenthesis_opener'] ) ) {
+				$opener = $this->tokens[ $stackPtr ]['parenthesis_opener'];
+
+				if ( isset( $this->tokens[ $opener ]['parenthesis_closer'] ) ) {
+					$closer = $this->tokens[ $opener ]['parenthesis_closer'];
+				}
+			}
+		} else {
+			// Short array syntax.
+			$opener = $stackPtr;
+
+			if ( isset( $this->tokens[ $stackPtr ]['bracket_closer'] ) ) {
+				$closer = $this->tokens[ $stackPtr ]['bracket_closer'];
+			}
+		}
+
+		if ( isset( $opener, $closer ) ) {
+			return array(
+				'opener' => $opener,
+				'closer' => $closer,
+			);
+		}
+
+		return false;
+	}
 
 	/**
 	 * Determine the line indentation whitespace.

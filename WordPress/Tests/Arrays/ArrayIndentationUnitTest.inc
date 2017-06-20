@@ -262,28 +262,28 @@ $my_array = [
 /**
  * Docblock about a filtered value...
  */
-'truthy' = apply_filters( '...', true ),
+'truthy' => apply_filters( '...', true ),
 ];
 
 $my_array = [
 		/**
 		 * Docblock about a filtered value...
 		 */
-		'truthy' = apply_filters( '...', true ),
+		'truthy' => apply_filters( '...', true ),
 ];
 
 $my_array = [
 /*
  * Multi-line inline comment about something...
  */
-'truthy' = apply_filters( '...', true ),
+'truthy' => apply_filters( '...', true ),
 ];
 
 $my_array = [
 		/*
 		 * Multi-line inline comment about something...
 		 */
-		'truthy' = apply_filters( '...', true ),
+		'truthy' => apply_filters( '...', true ),
 ];
 
 $my_array = array(
@@ -291,7 +291,7 @@ $my_array = array(
 	/**
 	 * Docblock about a filtered value...
 	 */
-	'truthy' = apply_filters( '...', true ),
+	$a = apply_filters( '...', true ),
 );
 
 $my_array = [
@@ -299,7 +299,7 @@ $my_array = [
 		/**
 		 * Docblock about a filtered value...
 		 */
-		'truthy' = apply_filters( '...', true ),
+		$a = apply_filters( '...', true ),
 ];
 
 $my_array = [
@@ -307,7 +307,7 @@ $my_array = [
 /*
  * Multi-line inline comment about something...
  */
-'truthy' = apply_filters( '...', true ),
+$a = apply_filters( '...', true ),
 ];
 
 $my_array = [
@@ -315,5 +315,5 @@ $my_array = [
 			/*
 			 * Multi-line inline comment about something...
 			 */
-			'truthy' = apply_filters( '...', true ),
+			$a = apply_filters( '...', true ),
 ];
